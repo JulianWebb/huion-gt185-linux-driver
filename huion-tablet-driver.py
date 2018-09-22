@@ -233,41 +233,32 @@ def main_loop():
         try:
             data = main.dev.read(main.endpoint.bEndpointAddress,
                 main.endpoint.wMaxPacketSize)
-
+            
             is_touch = data[1] == 129
             is_pen_btn1 = data[1] == 130
             is_pen_btn2 = data[1] == 132
             is_scrollbar = data[1] == 240
             is_buttonbar = data[1] == 224
 
+            # Descriptive variables to help future bodgers change it to suit them
+            button_item = data[4]
+            x_item = data[3]
+            y_item = data[5]
+            press_item = data[7]
+
             if is_buttonbar and main.settings['enable_buttons']:
                 # get the button value in power of two (1, 2, 4, 16, 32...)
-                BUTTON_VAL = (data[5] << 8) + data[4]
+                BUTTON_VAL = button_item
 
                 if BUTTON_VAL > 0: # 0 means release
                     # convert to the exponent (0, 1, 2, 3, 4...)
                     BUTTON_VAL = int(math.log(BUTTON_VAL, 2))
                     do_shortcut("button", MENU[main.current_menu][BUTTON_VAL])
-
-            elif is_scrollbar and main.settings['enable_scrollbar']:
-                SCROLL_VAL = data[5]
-
-                if SCROLL_VAL > 0: # 0 means release
-                    if SCROLL_VAL_PREV == 0:
-                        SCROLL_VAL_PREV=SCROLL_VAL
-
-                    if SCROLL_VAL > SCROLL_VAL_PREV:
-                        do_shortcut("scrollbar", MENU[main.current_menu]['scroll_up'])
-
-                    elif SCROLL_VAL < SCROLL_VAL_PREV:
-                        do_shortcut("scrollbar", MENU[main.current_menu]['scroll_down'])
-
-                SCROLL_VAL_PREV = SCROLL_VAL
-
             else:
-                X = (data[8] << 16) + (data[3] << 8) + data[2]
-                Y = (data[5] << 8) + data[4]
-                PRESS = (data[7] << 8) + data[6]
+                # I don't understand bitwise operators, but I do know how to do this
+                X = int((x_item / 255) * main.settings['pen_max_x']) + 1000 #left handed tweak
+                Y = int((y_item / 141) * main.settings['pen_max_y'])
+                PRESS = int((press_item / 7) * main.settings['pen_max_z']) #could also use data[6] but it was too unstable
 
                 main.vpen.write(ecodes.EV_ABS, ecodes.ABS_X, X)
                 main.vpen.write(ecodes.EV_ABS, ecodes.ABS_Y, Y)
